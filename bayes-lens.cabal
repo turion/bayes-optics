@@ -1,0 +1,44 @@
+cabal-version:      3.0
+name:               bayes-lens
+version:            0.1.0.0
+-- synopsis:
+-- description:
+license:            MIT
+license-file:       LICENSE
+author:             Manuel Bärenz
+maintainer:         programming@manuelbaerenz.de
+-- copyright:
+category:           Data
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common opts
+    ghc-options: -Wall
+    build-depends:    base >=4.17 && < 4.19
+        , profunctors ^>= 5.6.2
+        , vec
+        , fin
+        , vec-lens
+        , lens
+
+library
+    import:           opts
+    exposed-modules:  MyLib
+    -- other-modules:
+    -- other-extensions:
+    hs-source-dirs:   src
+    default-language: GHC2021
+    build-depends:
+        monad-bayes ^>= 1.3.0
+
+test-suite bayes-lens-test
+    import:           opts
+    default-language: GHC2021
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:
+        bayes-lens
