@@ -194,6 +194,8 @@ par2 (BayesLens2 s10 i1 l1 u1) (BayesLens2 s20 i2 l2 u2) =
     , u = \(b, d) (s1, s2) -> (,) <$> u1 b s1 <*> u2 d s2
     }
 
+-- TODO Generalise to heterogeneous product
+-- TODO now we can apply an iso to a record, this should be done generiacally
 -- | This doesn't combine the two inference states well though. It can't if we don't decide for a joint prior on a
 fan :: (Applicative m, Monad m, MonadDistribution m) => BayesLens2 m a b -> BayesLens2 m a c -> BayesLens2 m a (b, c)
 fan (BayesLens2 s10 i1 l1 u1) (BayesLens2 s20 i2 l2 u2) =
@@ -305,3 +307,24 @@ crp' alpha BayesLens2 {inferenceState, interpret, l, u} = BayesLens2
         then u b inferenceState <&> (: ss)
         else _ -- Huh. Do i run u on all states? Look up how this is typically done
   }
+
+-- TODO Generalise
+
+data BayesLensH m a (bs :: [Type]) = BayesLensH ... -- TODO just like BayesLens or BayesLens2, but outputs an NP I bs, and inputs an HS I bs. Alternatively inputs an HP Maybe bs
+-- TODO generically connect to higher kinded datatypes
+-- Composing these is a multicategory. Is there a library for that?
+-- Write down special cases to see whether this is usable
+
+-- TODO find riht type classes for fan & par
+-- TODO find type class or write one for composition with isos
+
+-- But back doesn't work
+to2 :: BayesLens m a b -> BayesLens2 m a b
+to2 = _
+
+-- FIXME generalies to heterogeneous
+observe :: BayesLens2 m a b -> b -> BayesLens2 m a ()
+-- This should fix a for all future samplings, maybe this can be used to implment delayed sampling
+sample :: BayesLens2 m a b -> m (a, BayesLens2 m a b)
+
+-- TODO  Is fan the right thing for delayed sampling?
