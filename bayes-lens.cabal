@@ -21,6 +21,7 @@ common opts
         , fin
         , vec-lens
         , lens
+        , sop-core
 
 library
     import:           opts
