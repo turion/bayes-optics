@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module MyLib where
 
@@ -20,6 +21,10 @@ import Data.Function ((&))
 import Data.Vec.Lazy.Lens (ix)
 import Control.Lens ((+~))
 import Data.Functor ((<&>))
+import Data.Kind (Type)
+import Data.SOP (NP (..), I (..), NS, SList (..), sList, case_SList)
+import qualified Data.SOP.NS as NS
+import Data.Bifunctor (Bifunctor(..))
 
 data Lens m a b where
   LensBayes :: BayesLens m a b -> Lens m a b
@@ -308,9 +313,51 @@ crp' alpha BayesLens2 {inferenceState, interpret, l, u} = BayesLens2
         else _ -- Huh. Do i run u on all states? Look up how this is typically done
   }
 
--- TODO Generalise
 
-data BayesLensH m a (bs :: [Type]) = BayesLensH ... -- TODO just like BayesLens or BayesLens2, but outputs an NP I bs, and inputs an HS I bs. Alternatively inputs an HP Maybe bs
+data BayesLensH m a (bs :: [Type]) = forall s . BayesLensH
+  { inferenceStateH :: s
+  , interpretH :: s -> m a
+  , lH :: a -> m (NP I bs)
+  , uH :: NS I bs -> s -> m s
+  , outTypes :: SList bs
+  }
+-- TODO just like BayesLens or BayesLens2, but outputs an NP I bs, and inputs an HS I bs. Alternatively inputs an HP Maybe bs
+
+type family Append (as :: [Type]) (bs :: [Type]) :: [Type] where
+  Append '[] bs = bs
+  Append (a ': as) bs = a ': Append as bs
+
+-- FIXME generalise
+multicomp :: Monad m => BayesLensH m a (b ': bs) -> BayesLensH m b cs -> BayesLensH m a (Append cs bs)
+multicomp (BayesLensH s10 i1 l1 u1 bsTypes) (BayesLensH s20 i2 l2 u2 csTypes) = BayesLensH
+  { inferenceStateH = (s10, s20)
+  , interpretH = \(s1, _) -> i1 s1
+  , lH = \a -> do
+      bs <- l1 a
+      case bs of
+        I b :* bs -> do
+          cs <- l2 b
+          return $ appendNP cs bs
+  , uH = \bscs -> case unappend csTypes bscs of
+          x -> _
+  , outTypes = appendSList csTypes $ decSList bsTypes
+  }
+
+appendNP :: NP f as -> NP f bs -> NP f (Append as bs)
+appendNP Nil bs = bs
+appendNP (a :* as) bs = a :* appendNP as bs
+
+appendSList :: SList as -> SList bs -> SList (Append as bs)
+appendSList SNil bs = bs
+
+decSList :: SList (a ': as) -> SList as
+decSList SCons = sList
+
+unappend :: SList as -> NS f (Append as bs) -> Either (NS f as) (NS f bs)
+unappend SNil b = Right b
+unappend SCons (NS.Z a) = Left (NS.Z a)
+unappend SCons (NS.S ab) = first NS.S $ unappend sList ab
+
 -- TODO generically connect to higher kinded datatypes
 -- Composing these is a multicategory. Is there a library for that?
 -- Write down special cases to see whether this is usable
@@ -324,7 +371,9 @@ to2 = _
 
 -- FIXME generalies to heterogeneous
 observe :: BayesLens2 m a b -> b -> BayesLens2 m a ()
+observe = _
 -- This should fix a for all future samplings, maybe this can be used to implment delayed sampling
-sample :: BayesLens2 m a b -> m (a, BayesLens2 m a b)
+samplePersist :: BayesLens2 m a b -> m (a, BayesLens2 m a b)
+samplePersist = _
 
 -- TODO  Is fan the right thing for delayed sampling?
